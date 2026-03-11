@@ -25,7 +25,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: service-account.json
         run: firebase experiments:enable webframeworks --project content-quality-tracker
-      - name: Deploy to Firebase
+      - name: Deploy to Firebase Hosting only
         env:
           GOOGLE_APPLICATION_CREDENTIALS: service-account.json
-        run: firebase deploy --only hosting --project content-quality-tracker
+        run: firebase deploy --only hosting --project content-quality-tracker --force
