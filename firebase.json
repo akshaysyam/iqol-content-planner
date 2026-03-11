@@ -1,16 +1,12 @@
 {
   "hosting": {
     "source": ".",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/api/**"],
     "frameworksBackend": {
       "region": "us-central1"
     },
     "run": {
       "secrets": ["GEMINI_API_KEY"]
     }
-  },
-  "functions": {
-    "source": ".next",
-    "runtime": "nodejs20"
   }
 }
