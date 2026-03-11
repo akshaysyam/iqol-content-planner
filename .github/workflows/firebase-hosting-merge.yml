@@ -22,4 +22,6 @@ jobs:
       - name: Decode service account
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_CONTENT_QUALITY_TRACKER }}' > service-account.json
       - name: Deploy to Firebase
-        run: firebase deploy --only hosting --project content-quality-tracker --service-account service-account.json
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account.json
+        run: firebase deploy --only hosting --project content-quality-tracker
