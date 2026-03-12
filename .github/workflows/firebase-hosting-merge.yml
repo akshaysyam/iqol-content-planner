@@ -16,7 +16,10 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-      - run: npm ci && npm run build
+      - name: Create env file
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env.local
+      - run: npm ci
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
       - name: Decode service account
@@ -28,6 +31,5 @@ jobs:
       - name: Deploy to Firebase
         env:
           GOOGLE_APPLICATION_CREDENTIALS: service-account.json
-        run: |
-          firebase deploy --only hosting --project content-quality-tracker --force || 
-          firebase deploy --project content-quality-tracker --force
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: firebase deploy --project content-quality-tracker --force
