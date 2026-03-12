@@ -7,7 +7,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../../../lib/firebase";
 import DashboardLayout from "../../components/DashboardLayout";
 import Editor from "../../components/Editor";
-import { FilePlus, Edit3, Link as LinkIcon, Users, Type, Clock } from "lucide-react";
+import { FilePlus, Edit3, Link as LinkIcon, Users, Type, Clock, List as ListIcon, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function ManagerDashboard() {
@@ -36,6 +36,7 @@ export default function ManagerDashboard() {
 
   // Manager Final QA / SEO State
   const [editContent, setEditContent] = useState("");
+  const [editFaqs, setEditFaqs] = useState<{question: string, answer: string}[]>([]);
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
   const [metaKeywords, setMetaKeywords] = useState("");
@@ -286,6 +287,7 @@ export default function ManagerDashboard() {
       const topicRef = doc(db, "topics", id);
       await updateDoc(topicRef, {
         content: editContent,
+        faqs: editFaqs,
         metaTitle,
         metaDescription,
         metaKeywords,
@@ -464,6 +466,7 @@ export default function ManagerDashboard() {
                           onClick={() => {
                             setViewingTopic(topic);
                             setEditContent(topic.content || "");
+                            setEditFaqs(topic.faqs || []);
                             setMetaTitle(topic.metaTitle || "");
                             setMetaDescription(topic.metaDescription || "");
                             
@@ -604,24 +607,120 @@ export default function ManagerDashboard() {
                 )}
                 
                 {viewingTopic.status === 'Legal_Approved' ? (
-                  <div className="flex flex-col border border-slate-200 rounded-xl overflow-hidden shadow-sm h-[400px]">
-                    <Editor 
-                      content={editContent} 
-                      onChange={setEditContent} 
-                      editable={true} 
-                    />
+                  <div className="flex flex-col gap-6">
+                    <div className="flex flex-col border border-slate-200 rounded-xl overflow-hidden shadow-sm h-[400px] bg-white">
+                      <div className="p-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                         <h4 className="text-sm font-bold text-slate-700">Main Content Editor</h4>
+                      </div>
+                      <div className="flex-1 overflow-y-auto w-full custom-scrollbar p-0 bg-slate-50">
+                        <Editor 
+                          content={editContent} 
+                          onChange={setEditContent} 
+                          editable={true} 
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Editable Q&A Section */}
+                    <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                        <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                          <ListIcon className="h-4 w-4 text-slate-500" />
+                          Q&A Section
+                        </h4>
+                        <button
+                          onClick={() => setEditFaqs([...editFaqs, { question: "", answer: "<p>Start writing an answer...</p>" }])}
+                          className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 hover:bg-blue-200 rounded transition-colors"
+                        >
+                          + Add Question
+                        </button>
+                      </div>
+                      
+                      {editFaqs.length === 0 ? (
+                        <div className="p-6 text-center text-sm text-slate-500 italic bg-slate-50/50">
+                          No Q&A items added.
+                        </div>
+                      ) : (
+                        <div className="p-6 space-y-6">
+                          {editFaqs.map((faq, index) => (
+                            <div key={index} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                              <div className="bg-slate-50 px-4 py-2 flex justify-between items-center border-b border-slate-200">
+                                <span className="text-xs font-bold text-slate-500 uppercase">Q&A #{index + 1}</span>
+                                <button 
+                                  onClick={() => setEditFaqs(editFaqs.filter((_, i) => i !== index))}
+                                  className="text-red-500 hover:text-red-700 p-1 text-xs font-medium"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <div className="p-4 space-y-4">
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-700 mb-1">Question</label>
+                                  <input
+                                    type="text"
+                                    value={faq.question}
+                                    onChange={(e) => {
+                                      const newFaqs = [...editFaqs];
+                                      newFaqs[index].question = e.target.value;
+                                      setEditFaqs(newFaqs);
+                                    }}
+                                    className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-700 mb-1">Answer (Rich Text)</label>
+                                  <div className="border border-slate-200 rounded-xl overflow-hidden min-h-[150px]">
+                                    <Editor
+                                      content={faq.answer}
+                                      onChange={(newAnswer) => {
+                                        const newFaqs = [...editFaqs];
+                                        newFaqs[index].answer = newAnswer;
+                                        setEditFaqs(newFaqs);
+                                      }}
+                                      editable={true}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  viewingTopic.content ? (
-                    <div 
-                      className="prose prose-sm max-w-none prose-slate bg-slate-50 border border-slate-200 p-6 rounded-xl prose-p:leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: viewingTopic.content }} 
-                    />
-                  ) : (
-                    <div className="p-6 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-slate-50">
-                      No content has been written for this topic yet.
-                    </div>
-                  )
+                  <div className="space-y-6">
+                    {viewingTopic.content ? (
+                      <div 
+                        className="prose prose-sm max-w-none prose-slate bg-slate-50 border border-slate-200 p-6 rounded-xl prose-p:leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: viewingTopic.content }} 
+                      />
+                    ) : (
+                      <div className="p-6 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-slate-50">
+                        No content has been written for this topic yet.
+                      </div>
+                    )}
+
+                    {viewingTopic.faqs && viewingTopic.faqs.length > 0 && (
+                      <div className="mt-8 border-t border-slate-200 pt-6">
+                        <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                          <ListIcon className="h-4 w-4 text-slate-400" /> Q&A Section
+                        </h4>
+                        <div className="space-y-4">
+                          {viewingTopic.faqs.map((faq: any, index: number) => (
+                            <div key={index} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                              <h5 className="font-bold text-slate-900 text-base mb-3 pb-2 border-b border-slate-100 flex gap-2">
+                                <span className="text-blue-600">Q:</span> {faq.question}
+                              </h5>
+                              <div className="prose prose-sm max-w-none">
+                                <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 

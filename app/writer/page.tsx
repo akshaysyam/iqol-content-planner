@@ -7,7 +7,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../../lib/firebase";
 import DashboardLayout from "../components/DashboardLayout";
 import Editor from "../components/Editor";
-import { FileText, Clock, AlertCircle, CheckCircle2, ChevronRight, List as ListIcon, RefreshCw, XCircle, Layers } from "lucide-react";
+import { FileText, Clock, AlertCircle, CheckCircle2, ChevronRight, List as ListIcon, Link as LinkIcon, RefreshCw, XCircle, Layers, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function WriterDashboard() {
@@ -15,6 +15,7 @@ export default function WriterDashboard() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [content, setContent] = useState("");
+  const [faqs, setFaqs] = useState<{question: string, answer: string, isSaved?: boolean}[]>([]);
   const [validating, setValidating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showRevisionNote, setShowRevisionNote] = useState(false);
@@ -107,6 +108,7 @@ export default function WriterDashboard() {
     }
     
     setContent(task.content || `<p>Start writing your post answering to the target keywords: <strong>${kwDisplay}</strong>...</p>`);
+    setFaqs(task.faqs || []);
     setValidationResult(null); // Reset validation
     setShowRevisionNote(task.status === "Needs_Revision"); // Show briefly or toggle off? Let's default to false to save space always.
     setShowRevisionNote(false); 
@@ -119,7 +121,7 @@ export default function WriterDashboard() {
     if (!selectedTask) return;
     try {
       const taskRef = doc(db, "topics", selectedTask.id);
-      await updateDoc(taskRef, { content, lastUpdated: new Date().toISOString() });
+      await updateDoc(taskRef, { content, faqs, lastUpdated: new Date().toISOString() });
       alert("Draft saved!");
     } catch (error) {
       console.error("Error saving draft:", error);
@@ -145,7 +147,7 @@ export default function WriterDashboard() {
     try {
       // 1. Save latest content first
       const taskRef = doc(db, "topics", selectedTask.id);
-      await updateDoc(taskRef, { content, lastUpdated: new Date().toISOString() });
+      await updateDoc(taskRef, { content, faqs, lastUpdated: new Date().toISOString() });
 
       // 2. Call Validation API (Mocking for now before API setup)
       const res = await fetch("/api/validate", {
@@ -315,69 +317,76 @@ export default function WriterDashboard() {
         <div className="flex-1 flex flex-col h-full bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           {selectedTask ? (
             <>
-              {/* Header Info */}
-              <div className="p-6 border-b border-slate-100 bg-white flex justify-between items-start">
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900 mb-1">{selectedTask.title}</h1>
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                    <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                      <Layers className="h-4 w-4" /> {selectedTask.brand}
+              {/* Header Info - Made more compact */}
+              <div className="p-4 md:p-6 border-b border-slate-100 bg-white flex flex-col items-start gap-4 flex-shrink-0">
+                <div className="w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <h1 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight flex-1">{selectedTask.title}</h1>
+                  
+                  <div className="flex gap-2 items-center flex-wrap shrink-0">
+                    {selectedTask.status === 'Needs_Revision' && selectedTask.rejectionNote && (
+                      <button 
+                        onClick={() => setShowRevisionNote(!showRevisionNote)}
+                        className="flex items-center justify-center gap-1.5 px-3 h-9 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 whitespace-nowrap"
+                      >
+                        <AlertCircle className="h-4 w-4 shrink-0" /> 
+                        {showRevisionNote ? "Hide Notes" : "Revisions"}
+                      </button>
+                    )}
+                    {['Drafting', 'Needs_Revision'].includes(selectedTask.status) ? (
+                      <>
+                        <button 
+                          onClick={handleSaveDraft}
+                          className="px-4 h-9 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm whitespace-nowrap"
+                        >
+                          Save Draft
+                        </button>
+                        <button 
+                          onClick={handleSubmitForReview}
+                          disabled={validating}
+                          className="flex items-center justify-center gap-2 px-4 h-9 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20 disabled:opacity-70 whitespace-nowrap"
+                        >
+                          {validating ? <RefreshCw className="h-4 w-4 animate-spin shrink-0" /> : "Submit & QA"}
+                        </button>
+                      </>
+                    ) : (
+                      <span className="flex items-center px-4 h-9 text-sm font-medium text-slate-500 bg-slate-100 border border-slate-200 rounded-lg whitespace-nowrap">
+                        Read Only: {selectedTask.status.replace('_', ' ')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex-1 w-full text-sm">
+                  <div className="flex items-center flex-wrap gap-2 text-slate-600 mb-3">
+                    <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md text-xs font-medium border border-slate-200">
+                      <Layers className="h-3 w-3 text-slate-500" /> {selectedTask.brand}
                     </span>
-                    <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                      Keywords: <strong className="text-slate-800">
-                        {Array.isArray(selectedTask.targetKeywords) 
-                          ? selectedTask.targetKeywords.join(', ')
-                          : selectedTask.targetKeyword}
-                      </strong>
+                    <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md text-xs font-medium border border-slate-200">
+                      <span className="text-slate-500">Words:</span> <strong className="text-slate-800">{selectedTask.minWords} - {selectedTask.maxWords}</strong>
                     </span>
-                    <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                      Words: <strong className="text-slate-800">{selectedTask.minWords} - {selectedTask.maxWords}</strong>
-                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 text-xs">
+                    <span className="text-slate-500 font-medium tracking-wide uppercase mr-2 text-[10px]">Target Keywords:</span> 
+                    <strong className="text-slate-800 leading-relaxed font-medium">
+                      {Array.isArray(selectedTask.targetKeywords) 
+                        ? selectedTask.targetKeywords.join(', ')
+                        : selectedTask.targetKeyword}
+                    </strong>
                   </div>
                   
                   {/* Scraped Keywords Requirement List */}
                   {selectedTask.scrapedKeywords && selectedTask.scrapedKeywords.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                       {selectedTask.scrapedKeywords.map((sk: any, i: number) => (
-                         <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                           {sk.requiredCount}x <strong className="font-semibold">{sk.word}</strong>
-                         </span>
-                       ))}
+                    <div className="mt-2 max-h-24 overflow-y-auto pr-2 pb-1 custom-scrollbar">
+                      <div className="flex flex-wrap gap-1.5">
+                         {selectedTask.scrapedKeywords.map((sk: any, i: number) => (
+                           <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
+                             <span className="text-emerald-500 opacity-70">{sk.requiredCount}x</span> <strong className="font-semibold">{sk.word}</strong>
+                           </span>
+                         ))}
+                      </div>
                     </div>
                    )}
-                </div>
-                
-                <div className="flex gap-2 items-center flex-wrap sm:flex-nowrap justify-end">
-                  {selectedTask.status === 'Needs_Revision' && selectedTask.rejectionNote && (
-                    <button 
-                      onClick={() => setShowRevisionNote(!showRevisionNote)}
-                      className="flex items-center justify-center gap-1.5 px-3 h-9 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 whitespace-nowrap"
-                    >
-                      <AlertCircle className="h-4 w-4 shrink-0" /> 
-                      {showRevisionNote ? "Hide Notes" : "Revisions"}
-                    </button>
-                  )}
-                  {['Drafting', 'Needs_Revision'].includes(selectedTask.status) ? (
-                    <>
-                      <button 
-                        onClick={handleSaveDraft}
-                        className="px-4 h-9 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm whitespace-nowrap"
-                      >
-                        Save Draft
-                      </button>
-                      <button 
-                        onClick={handleSubmitForReview}
-                        disabled={validating}
-                        className="flex items-center justify-center gap-2 px-4 h-9 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20 disabled:opacity-70 whitespace-nowrap"
-                      >
-                        {validating ? <RefreshCw className="h-4 w-4 animate-spin shrink-0" /> : "Submit & QA"}
-                      </button>
-                    </>
-                  ) : (
-                    <span className="flex items-center px-4 h-9 text-sm font-medium text-slate-500 bg-slate-100 border border-slate-200 rounded-lg whitespace-nowrap">
-                      Read Only: {selectedTask.status.replace('_', ' ')}
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -434,23 +443,131 @@ export default function WriterDashboard() {
               )}
 
               {/* Actionable Editor Area */}
-              <div className="flex-1 p-2 md:p-6 relative bg-slate-50/50 flex flex-col h-0 w-full overflow-hidden">
-                <Editor 
-                  content={content} 
-                  onChange={setContent} 
-                  editable={['Drafting', 'Needs_Revision'].includes(selectedTask.status)} 
-                />
+              <div className="flex-1 overflow-y-auto w-full custom-scrollbar">
+                <div className="p-0 relative bg-slate-50 flex flex-col min-h-[500px] w-full overflow-hidden shrink-0">
+                  <Editor 
+                    content={content} 
+                    onChange={setContent} 
+                    editable={['Drafting', 'Needs_Revision'].includes(selectedTask.status)} 
+                  />
+                </div>
+
+                {/* Q&A Section */}
+                <div className="p-6 bg-slate-100 border-t border-slate-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Q&A Section (Optional)</h3>
+                    {['Drafting', 'Needs_Revision'].includes(selectedTask.status) && (
+                      <button
+                        onClick={() => setFaqs([...faqs, { question: "", answer: "<p>Start writing your answer...</p>" }])}
+                        className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 hover:bg-blue-200 rounded transition-colors flex items-center gap-1"
+                      >
+                        + Add Question
+                      </button>
+                    )}
+                  </div>
+                  
+                  {faqs.length === 0 ? (
+                    <div className="text-center py-6 bg-white rounded-xl border border-dashed border-slate-300">
+                      <p className="text-sm text-slate-500">No Q&A items added yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {faqs.map((faq, index) => (
+                        <div key={index} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center group">
+                            <span className="text-xs font-bold text-slate-500 uppercase">
+                              Q&A #{index + 1} {faq.isSaved && <span className="ml-2 text-emerald-600 px-2 py-0.5 bg-emerald-100 rounded text-[10px]">Saved</span>}
+                            </span>
+                            <div className="flex gap-2">
+                              {faq.isSaved && ['Drafting', 'Needs_Revision'].includes(selectedTask.status) && (
+                                <button
+                                  onClick={() => setFaqs(faqs.map((f, i) => i === index ? { ...f, isSaved: false } : f))}
+                                  className="text-blue-600 hover:text-blue-800 p-1 text-xs font-semibold px-2 hover:bg-blue-50 rounded"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              {['Drafting', 'Needs_Revision'].includes(selectedTask.status) && (
+                                <button
+                                  onClick={() => setFaqs(faqs.filter((_, i) => i !== index))}
+                                  className="text-red-500 hover:text-red-700 p-1 opacity-50 group-hover:opacity-100 transition-opacity"
+                                  title="Remove this question"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {faq.isSaved ? (
+                            <div className="p-4 bg-white">
+                              <h4 className="font-bold text-slate-800 text-sm">{faq.question || "Untitled Question"}</h4>
+                            </div>
+                          ) : (
+                            <div className="p-4 space-y-4">
+                              <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Question</label>
+                                <input
+                                  type="text"
+                                  value={faq.question}
+                                  onChange={(e) => {
+                                    const newFaqs = [...faqs];
+                                    newFaqs[index].question = e.target.value;
+                                    setFaqs(newFaqs);
+                                  }}
+                                  disabled={!['Drafting', 'Needs_Revision'].includes(selectedTask.status)}
+                                  className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-shadow disabled:bg-slate-50 disabled:text-slate-500"
+                                  placeholder="e.g. What is the process for property registration in Bangalore?"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Answer (Rich Text)</label>
+                                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                  <Editor
+                                    content={faq.answer}
+                                    onChange={(newAnswer) => {
+                                      const newFaqs = [...faqs];
+                                      newFaqs[index].answer = newAnswer;
+                                      setFaqs(newFaqs);
+                                    }}
+                                    editable={['Drafting', 'Needs_Revision'].includes(selectedTask.status)}
+                                    minHeightClass="min-h-[120px]"
+                                  />
+                                </div>
+                              </div>
+                              <div className="pt-2 flex justify-end">
+                                <button
+                                  onClick={() => setFaqs(faqs.map((f, i) => i === index ? { ...f, isSaved: true } : f))}
+                                  disabled={!faq.question.trim()}
+                                  className="px-4 py-2 bg-slate-800 text-white text-xs font-semibold rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                                >
+                                  Save Q&A
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Reference Links Footer */}
               {selectedTask.referenceLinks && (
-                <div className="p-4 border-t border-slate-100 bg-white text-xs">
-                  <span className="font-semibold text-slate-700 mr-2">Research Links:</span>
-                  {selectedTask.referenceLinks.split(',').map((link: string, i: number) => (
-                    <a key={i} href={link.trim()} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center mr-4">
-                      {link.trim()}
-                    </a>
-                  ))}
+                <div className="p-3 border-t border-slate-200 bg-white text-[11px] shrink-0">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider mr-2">Research Links:</span>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                    {selectedTask.referenceLinks.split(',').map((link: string, i: number) => {
+                      const l = link.trim();
+                      if(!l) return null;
+                      return (
+                        <a key={i} href={l} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center truncate max-w-[300px]" title={l}>
+                          <LinkIcon className="h-3 w-3 mr-1 shrink-0" /> {l.replace(/^https?:\/\/(www\.)?/, '')}
+                        </a>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </>

@@ -26,6 +26,7 @@ interface EditorProps {
   content: string;
   onChange: (content: string) => void;
   editable?: boolean;
+  minHeightClass?: string;
 }
 
 const MenuBar = ({ editor, isExpanded, toggleExpand }: { editor: any, isExpanded: boolean, toggleExpand: () => void }) => {
@@ -78,7 +79,7 @@ const MenuBar = ({ editor, isExpanded, toggleExpand }: { editor: any, isExpanded
   const Divider = () => <div className="w-px h-6 bg-slate-300 mx-1 self-center hidden sm:block"></div>;
 
   return (
-    <div className="flex flex-col border-b border-slate-200 bg-slate-50 rounded-t-xl overflow-hidden">
+    <div className={`flex flex-col border-b border-slate-200 bg-slate-50/80 overflow-hidden sticky top-0 z-10 ${isExpanded ? 'rounded-t-xl' : ''}`}>
       {/* Primary Toolbar */}
       <div className="flex flex-wrap gap-1 p-2 items-center">
         
@@ -207,7 +208,7 @@ const MenuBar = ({ editor, isExpanded, toggleExpand }: { editor: any, isExpanded
   );
 };
 
-export default function Editor({ content, onChange, editable = true }: EditorProps) {
+export default function Editor({ content, onChange, editable = true, minHeightClass = 'min-h-[400px]' }: EditorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const editor = useEditor({
@@ -258,20 +259,20 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm xl:prose-base max-w-none focus:outline-none min-h-[400px] p-6 text-slate-800 prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl',
+        class: `prose prose-sm xl:prose-base max-w-none focus:outline-none ${minHeightClass} p-6 text-slate-800 prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl`,
       },
     },
   });
 
   return (
-    <div className={`border border-slate-200 bg-white flex flex-col transition-all duration-200 ${
+    <div className={`bg-white flex flex-col transition-all duration-200 ${
       isExpanded 
         ? 'fixed inset-4 z-[100] rounded-xl shadow-[0_0_0_100vw_rgba(0,0,0,0.5)]' 
-        : 'rounded-xl h-full flex-grow shadow-sm'
+        : 'h-full flex-grow'
     }`}>
       {editable && <MenuBar editor={editor} isExpanded={isExpanded} toggleExpand={() => setIsExpanded(!isExpanded)} />}
       <div 
-        className="flex-1 overflow-y-auto w-full h-full p-2 bg-white cursor-text tiptap-container pb-6" 
+        className="flex-1 overflow-y-auto w-full h-full p-6 md:px-8 lg:px-12 bg-white cursor-text tiptap-container pb-12 custom-scrollbar" 
         onClick={() => {
           if (editable) {
             editor?.commands.focus();
