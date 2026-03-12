@@ -51,32 +51,10 @@ export default function ManagerDashboard() {
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [validationData, setValidationData] = useState<any>(null);
 
-  // Automatically validate content upon selecting a topic that has content
+  // Load cached validation results from Firestore (no API call needed)
   useEffect(() => {
-    if (viewingTopic && viewingTopic.content) {
-      const runValidationObj = async () => {
-        setMetricsLoading(true);
-        try {
-           const res = await fetch("/api/validate", {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({
-               content: viewingTopic.content,
-               minWords: viewingTopic.minWords,
-               maxWords: viewingTopic.maxWords,
-               targetKeywords: viewingTopic.targetKeywords || [viewingTopic.targetKeyword].filter(Boolean),
-               scrapedKeywords: viewingTopic.scrapedKeywords || [],
-             }),
-           });
-           const result = await res.json();
-           setValidationData(result);
-        } catch (error) {
-           console.error("Failed to check quality metrics:", error);
-        } finally {
-           setMetricsLoading(false);
-        }
-      };
-      runValidationObj();
+    if (viewingTopic && viewingTopic.validationResults) {
+      setValidationData(viewingTopic.validationResults);
     } else {
       setValidationData(null);
     }

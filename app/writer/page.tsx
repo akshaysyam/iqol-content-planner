@@ -165,6 +165,9 @@ export default function WriterDashboard() {
       const result = await res.json();
       setValidationResult(result);
 
+      // Store validation results in Firestore so manager can view without re-running
+      await updateDoc(taskRef, { validationResults: result, validatedAt: new Date().toISOString() });
+
       if (result.passed) {
         // Build new event history
         const newEvent = {
@@ -184,9 +187,7 @@ export default function WriterDashboard() {
         alert("Success! Content passed all checks and was sent to Legal.");
         setIsSubmittingRevision(false);
         setRevisionComment("");
-        // We do not remove from list anymore, the listener handles it and keeps it read-only
       } else {
-        // Validation failed - we don't alert here anymore, we let the UI banner render the specific errors
         console.log("Validation failed with errors:", result.errors);
       }
 
